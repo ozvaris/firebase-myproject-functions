@@ -1,3 +1,4 @@
+/* eslint-disable max-len */
 /* eslint-disable indent */
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
@@ -59,7 +60,6 @@ exports.onWriteTileLiked = functions
     });
 
     functions.logger.log(
-      // eslint-disable-next-line max-len
       `Liked Update tile : ${context.params.tileID} user : ${context.params.userId} `
     );
 
@@ -118,7 +118,6 @@ exports.onWriteTileRead = functions
     });
 
     functions.logger.log(
-      // eslint-disable-next-line max-len
       `Read Update tile : ${context.params.tileID} user : ${context.params.userId} `
     );
 
@@ -142,7 +141,7 @@ exports.onWriteTileContentClicked = functions
     //   .doc(context.params.likedID);
 
     // const docRefTileContentClicked = admin.firestore().doc(
-    // eslint-disable-next-line max-len, max-len
+
     //   `tiles/${context.params.tileID}/userContentClicked/${context.params.userId}`
     // );
 
@@ -174,26 +173,80 @@ exports.onWriteTileContentClicked = functions
         docRefTile.update(data);
 
         functions.logger.log(
-          // eslint-disable-next-line max-len
           `Content Clicked Count Update tile : ${context.params.tileID} user : ${context.params.userID} contentClickedCount: ${contentClickedCount}`
         );
       });
     }
 
     functions.logger.log(
-      // eslint-disable-next-line max-len
       `Content Clicked Count run properly : ${context.params.tileID} user : ${context.params.userID}`
     );
 
     return 0;
   });
 
-exports.ScheduledNewTiles = functions
+// exports.ScheduledNewTiles = functions
+//   .region("europe-west2")
+//   .pubsub.schedule("0 0 * * *")
+//   .timeZone("Europe/London")
+//   .onRun(async (context) => {
+//     const executionTimestamp = context.timestamp; // The timestamp at which the event happened.
+//     const tiles = firestore.collection("tiles");
+
+//     const tile = await tiles.where("widget", "==", "new").get();
+
+//     functions.logger.log(
+//       `ScheduledNewTiles Update new to trending : amount: ${tile.size} `,
+//       executionTimestamp
+//     );
+
+//     let i = 0;
+
+//     if (tile.size > 0) {
+//       tile.forEach(async (snapshot) => {
+//         let hourDiff = 0;
+
+//         const data = tile.docs[i].data();
+
+//         const now = admin.firestore.Timestamp.fromDate(
+//           new Date(executionTimestamp)
+//         ).seconds;
+
+//         const createdAt = data.createdAt._seconds;
+
+//         const secondsDiff = now - createdAt;
+
+//         const minsDiff = Math.round(secondsDiff / 60);
+
+//         hourDiff = Math.round(minsDiff / 60);
+
+//         functions.logger.log(
+//           `ScheduledNewTiles Update new to trending : rowId: ${tile.docs[i].id} hourDiff: ${hourDiff}`,
+//           executionTimestamp
+//         );
+
+//         if (hourDiff > 24) {
+//           // eslint-disable-next-line object-curly-spacing
+//           snapshot.ref.update({ widget: "trending" });
+//         }
+
+//         i += 1;
+//       });
+//     }
+
+//     functions.logger.log(
+//       "ScheduledNewTiles Update new to trending  run properly ",
+//       executionTimestamp
+//     );
+
+//     return null;
+//   });
+
+exports.ScheduledConvertNewTilesByClickCount = functions
   .region("europe-west2")
   .pubsub.schedule("0 0 * * *")
   .timeZone("Europe/London")
   .onRun(async (context) => {
-    // eslint-disable-next-line max-len
     const executionTimestamp = context.timestamp; // The timestamp at which the event happened.
     const tiles = firestore.collection("tiles");
     const params = firestore.doc("params/params1");
@@ -201,44 +254,113 @@ exports.ScheduledNewTiles = functions
     const tile = await tiles.where("widget", "==", "new").get();
 
     functions.logger.log(
-      // eslint-disable-next-line max-len
-      `ScheduledNewTiles Update new to trending : amount: ${tile.size} `,
+      `ScheduledNewTiles Update new to trending : new tile amount: ${tile.size} `,
       executionTimestamp
     );
 
     let i = 0;
 
     if (tile.size > 0) {
+      const _params = await params.get();
+      const _paramsData = _params.data();
+      if (_paramsData === undefined) {
+        functions.logger.log(
+          "ScheduledNewTiles Update new to trending : _paramsData undefined ",
+          executionTimestamp
+        );
+
+        return -1;
+      }
+
+      const convertNewToTrendingTileMinute =
+        _paramsData.convertNewToTrendingTileMinute as number;
+
+      const convertToNormalTileMinute =
+        _paramsData.convertToNormalTileMinute as number;
+
+      const treshouldCount = _paramsData.treshouldCount as number;
+
+      functions.logger.log(
+        `ScheduledNewTiles Update new to trending : Firebase Params convertNewToTrendingTileMinute:  ${convertNewToTrendingTileMinute},`,
+        `convertToNormalTileMinute:  ${convertToNormalTileMinute} , treshouldCount:  ${treshouldCount}`,
+        executionTimestamp
+      );
+
       tile.forEach(async (snapshot) => {
-        const tiles = firestore.collection(
+        const tileContentClicked = firestore.collection(
           `tiles/${tile.docs[i].id}/tileContentClicked`
         );
 
-        let hourDiff = 0;
-
-        const data = tile.docs[i].data();
+        const tileData = tile.docs[i].data();
 
         const now = admin.firestore.Timestamp.fromDate(
           new Date(executionTimestamp)
         ).seconds;
 
-        const createdAt = data.createdAt._seconds;
+        const secondsDiff = now - convertNewToTrendingTileMinute * 60;
 
-        const secondsDiff = now - createdAt;
+        const secondsDiffDate = admin.firestore.Timestamp.fromMillis(
+          secondsDiff * 1000
+        ).toDate();
 
-        const minsDiff = Math.round(secondsDiff / 60);
+        const createdAtSeconds = tileData.createdAt._seconds;
 
-        hourDiff = Math.round(minsDiff / 60);
+        const createdAtDate = (
+          tileData.createdAt as admin.firestore.Timestamp
+        ).toDate();
 
         functions.logger.log(
-          // eslint-disable-next-line max-len
-          `ScheduledNewTiles Update new to trending : rowId: ${tile.docs[i].id} hourDiff: ${hourDiff}`,
+          `ScheduledNewTiles Update new to trending : Reading Tile title : ${tileData.title},  rowId: ${tile.docs[i].id}, `,
           executionTimestamp
         );
 
-        if (hourDiff > 24) {
+        const tileContentClickedCount = await tileContentClicked
+          .where("createdAt", ">", secondsDiffDate)
+          .get();
+
+        functions.logger.log(
+          `ScheduledNewTiles Update new to trending : tileContentClickedCount : ${tileContentClickedCount.size},  rowId: ${tile.docs[i].id}, `,
+          `createdAtSeconds: ${createdAtSeconds},  ControlTimeSeconds: ${secondsDiff}`,
+          `createdAtDate: ${createdAtDate},  ControlTimeDate: ${secondsDiffDate}`,
+          executionTimestamp
+        );
+
+        if (tileContentClickedCount.size > treshouldCount) {
+          const tileValues = {
+            id: tile.docs[i].id,
+            title: tileData.title,
+            createdAtSeconds,
+            secondsDiff,
+            createdAtDate,
+            secondsDiffDate,
+          };
           // eslint-disable-next-line object-curly-spacing
-          snapshot.ref.update({ widget: "trending" });
+          snapshot.ref.update({ widget: "trending" }).then(() => {
+            functions.logger.log(
+              `ScheduledNewTiles Update new to trending : Updated Tile title new to trending : ${tileValues.title},  rowId: ${tileValues.id}, `,
+              `createdAt: ${tileValues.createdAtSeconds},  ControlTime: ${tileValues.secondsDiff}`,
+              `createdAt: ${tileValues.createdAtDate},  ControlTime: ${tileValues.secondsDiffDate}`,
+              executionTimestamp
+            );
+          });
+        } else {
+          const tileValues = {
+            id: tile.docs[i].id,
+            title: tileData.title,
+            createdAtSeconds,
+            secondsDiff,
+            createdAtDate,
+            secondsDiffDate,
+          };
+          // eslint-disable-next-line object-curly-spacing
+          snapshot.ref.update({ widget: "none" }).then(() => {
+            functions.logger.log(
+              `ScheduledNewTiles Update new to trending : Updated Tile title new to none : ${tileValues.title},  rowId: ${tileValues.id}, `,
+              `createdAt: ${tileValues.createdAtSeconds},  ControlTime: ${tileValues.secondsDiff}`,
+              `createdAt: ${tileValues.createdAtDate},  ControlTime: ${tileValues.secondsDiffDate}`,
+              executionTimestamp
+            );
+          });
         }
 
         i += 1;
@@ -246,7 +368,6 @@ exports.ScheduledNewTiles = functions
     }
 
     functions.logger.log(
-      // eslint-disable-next-line max-len
       "ScheduledNewTiles Update new to trending  run properly ",
       executionTimestamp
     );
